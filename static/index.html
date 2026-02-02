@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Detector</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f0f2f5; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 10px; }
+        p.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        
+        .upload-box { 
+            border: 2px dashed #ccc; 
+            padding: 40px; 
+            text-align: center; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+        }
+        .upload-box:hover { border-color: #007bff; background: #f8f9fa; }
+        
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: bold;
+            cursor: pointer; 
+            transition: background 0.2s;
+        }
+        button:hover { background: #0056b3; }
+        
+        #result { margin-top: 30px; display: none; padding-top: 20px; border-top: 1px solid #eee; }
+        .result-title { font-size: 1.2em; margin-bottom: 10px; }
+        
+        /* Dynamic Colors for Results */
+        .human { color: #28a745; font-weight: bold; font-size: 1.4em; }
+        .ai { color: #dc3545; font-weight: bold; font-size: 1.4em; }
+        
+        .reasons { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.95em; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ SatyaVachan: AI Voice Guard</h1>
+        <p class="subtitle">Upload an audio file (MP3) to verify if it's Human or AI.</p>
+        
+        <input type="file" id="audioFile" accept="audio/*" style="display: none;" onchange="showFileName()">
+        <div class="upload-box" onclick="document.getElementById('audioFile').click()">
+            <p id="fileName">📂 Click to Upload Audio</p>
+        </div>
+
+        <button onclick="analyzeAudio()">🔍 Analyze Voice</button>
+
+        <div id="result">
+            <div class="result-title">Detection Result: <span id="classification"></span></div>
+            <p>Confidence Score: <strong id="confidence"></strong>%</p>
+            <div class="reasons">
+                <strong>Analysis Report:</strong>
+                <ul id="explanationList" style="padding-left: 20px; margin-top: 5px;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Show file name when selected
+        function showFileName() {
+            const file = document.getElementById('audioFile').files[0];
+            if (file) document.getElementById('fileName').innerText = "✅ Selected: " + file.name;
+        }
+
+        // 2. The Logic to Call API
+        async function analyzeAudio() {
+            const file = document.getElementById('audioFile').files[0];
+            if (!file) return alert("Please select a file first!");
+
+            // Change Text to "Analyzing..."
+            const btn = document.querySelector("button");
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Analyzing...";
+            btn.disabled = true;
+
+            try {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async function() {
+                    // Remove "data:audio/mp3;base64," prefix
+                    const base64String = reader.result.split(',')[1];
+
+                    // Send to your Python Backend
+                    const response = await fetch('/api/voice-detection', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-api-key': 'sk_hackathon_team_123' // Authentication
+                        },
+                        body: JSON.stringify({ 
+                            language: "English", 
+                            audioFormat: "mp3", 
+                            audioBase64: base64String 
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // Show Results
+                    const resultDiv = document.getElementById('result');
+                    const classSpan = document.getElementById('classification');
+                    
+                    resultDiv.style.display = 'block';
+                    classSpan.innerText = data.classification;
+                    
+                    // Set Colors (Green for Human, Red for AI)
+                    if (data.classification === "AI_GENERATED") {
+                        classSpan.className = "ai";
+                    } else {
+                        classSpan.className = "human";
+                    }
+
+                    document.getElementById('confidence').innerText = (data.confidenceScore * 100).toFixed(1);
+                    
+                    // Show Explanation
+                    const list = document.getElementById('explanationList');
+                    list.innerHTML = `<li>${data.explanation}</li>`;
+                };
+            } catch (error) {
+                alert("Error connecting to server!");
+                console.error(error);
+            } finally {
+                // Reset button
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

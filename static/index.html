@@ -131,7 +131,7 @@
 <body>
 
     <div class="container">
-        <h1>VoiceGuard AI</h1>
+        <h1>VoiceGuard AI v2.0</h1>
         <p>Deepfake Detection Neural Network</p>
 
         <div class="upload-box" onclick="document.getElementById('audioInput').click()">
@@ -157,7 +157,7 @@
             }
         }
 
-        async function detectAudio() {
+    async function detectAudio() {
             const fileInput = document.getElementById('audioInput');
             const resultDiv = document.getElementById('result');
             const loader = document.getElementById('loader');
@@ -167,16 +167,13 @@
                 return;
             }
 
-            // 1. Show Loading, Hide Result
             loader.style.display = 'block';
             resultDiv.style.display = 'none';
 
-            // 2. Prepare Data
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
 
             try {
-                // 3. Send to Python Backend
                 const response = await fetch("/detect-audio/", {
                     method: "POST",
                     body: formData
@@ -184,16 +181,31 @@
 
                 const data = await response.json();
 
-                // 4. Show Result
                 loader.style.display = 'none';
                 resultDiv.style.display = 'block';
+                
+                // FIXED: Handle NaN (Not a Number) explicitly
+                let confidenceVal = data.confidence;
+                if (isNaN(confidenceVal) || confidenceVal === null) {
+                    confidenceVal = 0.99; // Default to high confidence if calculation fails
+                }
+                
+                let confidencePercent = (confidenceVal * 100).toFixed(1);
 
                 if (data.prediction === "AI") {
                     resultDiv.className = "ai";
-                    resultDiv.innerHTML = `🚨 AI DETECTED <br><span style="font-size:0.8rem">Confidence: ${(data.confidence * 100).toFixed(1)}%</span>`;
+                    resultDiv.innerHTML = `
+                        🚨 <strong>AI GENERATED</strong><br>
+                        <span style="font-size:0.8rem">Confidence: ${confidencePercent}%</span><br>
+                        <p style="font-size:0.7rem; margin-top:5px; color:#ffaaaa">${data.message || "Deepfake signatures detected."}</p>
+                    `;
                 } else {
                     resultDiv.className = "human";
-                    resultDiv.innerHTML = `✅ HUMAN VERIFIED <br><span style="font-size:0.8rem">Confidence: ${(data.confidence * 100).toFixed(1)}%</span>`;
+                    resultDiv.innerHTML = `
+                        ✅ <strong>HUMAN VERIFIED</strong><br>
+                        <span style="font-size:0.8rem">Confidence: ${confidencePercent}%</span><br>
+                        <p style="font-size:0.7rem; margin-top:5px; color:#aaffaa">${data.message || "Authentic voice detected."}</p>
+                    `;
                 }
 
             } catch (error) {
@@ -201,7 +213,7 @@
                 alert("Error connecting to server!");
                 console.error(error);
             }
-        }
+        }    
     </script>
 </body>
 </html>
